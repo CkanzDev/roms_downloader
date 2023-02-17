@@ -13,15 +13,56 @@ class Search extends StatefulWidget {
 
 class _SearchState extends State<Search> {
   static List<Articles> articles = [];
+  static List<Articles> ps2 = [];
+  static List<Articles> gba = [];
+
+  static bool ps2Scan = false;
+  static bool gbaScan = false;
 
   @override
   void initState() {
     super.initState();
 
-    getWebData();
+    getWebDataPs2();
   }
 
-  Future getWebData() async {
+  Future getAllData() async {
+    articles = [...ps2, ...gba].toSet().toList();
+    update_list('');
+  }
+
+  Future getWebDataGba() async {
+    final urlGba = Uri.parse(
+        'https://ia804602.us.archive.org/view_archive.php?archive=/12/items/htgdb-gamepacks/%40GBA%20-%20EverDrive%20GBA%202022-08-08.zip');
+    final responseGba = await http.get(urlGba);
+    dom.Document html = dom.Document.html(responseGba.body);
+
+    final titles = html
+        .querySelectorAll('div > table > tbody > tr > td > a')
+        .map((element) => element.innerHtml.trim())
+        .toList();
+
+    final urls = html
+        .querySelectorAll('div > table > tbody > tr > td > a')
+        .map((element) => element.attributes['href'])
+        .toList();
+
+    print('Count Gba: ${titles.length}, ${urls.length}');
+    setState(() {
+      gba = List.generate(
+        titles.length,
+        (index) => Articles(
+          titles: titles[index],
+          url: urls[index] ?? 'default',
+          type: 'GBA',
+          size: 'N',
+        ),
+      );
+    });
+    getAllData();
+  }
+
+  Future getWebDataPs2() async {
     final url = Uri.parse(
         'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%202/');
     final response = await http.get(url);
@@ -37,18 +78,25 @@ class _SearchState extends State<Search> {
         .map((element) => element.attributes['href'])
         .toList();
 
-    print('Count: ${titles.length}, ${urls.length}');
+    final size = html
+        .querySelectorAll('tbody > tr > td:nth-child(1)')
+        .map((element) => element.innerHtml.trim())
+        .toList();
+
+    print('Count Ps2: ${titles.length}, ${urls.length}');
 
     setState(() {
-      articles = List.generate(
+      ps2 = List.generate(
         titles.length,
         (index) => Articles(
           titles: titles[index],
           url: urls[index] ?? 'default',
+          type: 'PS2',
+          size: size[index],
         ),
       );
     });
-    update_list('');
+    getWebDataGba();
   }
 
   Future<void> _launchUrl(Uri _url) async {
@@ -102,6 +150,7 @@ class _SearchState extends State<Search> {
 
                 return ListTile(
                   title: Text(article.titles),
+                  subtitle: Text(article.type + ", " + article.size),
                   onTap: () => _launchUrl(Uri.parse(
                       'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%202/' +
                           article.url)),
@@ -118,9 +167,13 @@ class _SearchState extends State<Search> {
 class Articles {
   final String titles;
   final String url;
+  final String type;
+  final String size;
 
   const Articles({
     required this.titles,
     required this.url,
+    required this.type,
+    required this.size,
   });
 }
