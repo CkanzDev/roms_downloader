@@ -15,9 +15,7 @@ class _SearchState extends State<Search> {
   static List<Articles> articles = [];
   static List<Articles> ps2 = [];
   static List<Articles> gba = [];
-
-  static bool ps2Scan = false;
-  static bool gbaScan = false;
+  static List<Articles> nds = [];
 
   @override
   void initState() {
@@ -27,8 +25,46 @@ class _SearchState extends State<Search> {
   }
 
   Future getAllData() async {
-    articles = [...ps2, ...gba].toSet().toList();
+    articles = [...ps2, ...gba, ...nds].toSet().toList();
     update_list('');
+  }
+
+  Future getWebDataNds() async {
+    final url = Uri.parse(
+        'https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%20DS%20(Decrypted)/');
+    final response = await http.get(url);
+    dom.Document html = dom.Document.html(response.body);
+
+    final titles = html
+        .querySelectorAll('tbody > tr > td > a')
+        .map((element) => element.innerHtml.trim())
+        .toList();
+
+    final urls = html
+        .querySelectorAll('tbody > tr > td > a')
+        .map((element) => element.attributes['href'])
+        .toList();
+
+    final size = html
+        .querySelectorAll('tbody > tr> td:nth-child(1)')
+        .map((element) => element.innerHtml.trim())
+        .toList();
+
+    print('Count NDS: ${titles.length}, ${urls.length}');
+    setState(() {
+      nds = List.generate(
+        titles.length,
+        (index) => Articles(
+          titles: titles[index],
+          url:
+              'https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%20DS%20(Decrypted)/' +
+                  urls[index].toString(),
+          type: 'NDS',
+          size: size[index],
+        ),
+      );
+    });
+    getAllData();
   }
 
   Future getWebDataGba() async {
@@ -53,13 +89,15 @@ class _SearchState extends State<Search> {
         titles.length,
         (index) => Articles(
           titles: titles[index],
-          url: urls[index] ?? 'default',
+          url:
+              'https://ia804602.us.archive.org/view_archive.php?archive=/12/items/htgdb-gamepacks/%40GBA%20-%20EverDrive%20GBA%202022-08-08.zip' +
+                  urls[index].toString(),
           type: 'GBA',
           size: 'N',
         ),
       );
     });
-    getAllData();
+    getWebDataNds();
   }
 
   Future getWebDataPs2() async {
@@ -90,7 +128,9 @@ class _SearchState extends State<Search> {
         titles.length,
         (index) => Articles(
           titles: titles[index],
-          url: urls[index] ?? 'default',
+          url:
+              'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%202/' +
+                  urls[index].toString(),
           type: 'PS2',
           size: size[index],
         ),
@@ -151,9 +191,7 @@ class _SearchState extends State<Search> {
                 return ListTile(
                   title: Text(article.titles),
                   subtitle: Text(article.type + ", " + article.size),
-                  onTap: () => _launchUrl(Uri.parse(
-                      'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%202/' +
-                          article.url)),
+                  onTap: () => _launchUrl(Uri.parse(article.url)),
                 );
               },
             ),
